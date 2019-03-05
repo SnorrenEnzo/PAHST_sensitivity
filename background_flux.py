@@ -71,7 +71,7 @@ S_tot = S_zod + S_tel
 
 #### some semi-fixed values
 #integration time
-t_i = 20*u.h
+t_i = (20*u.h).to(u.s)
 #desired signal to noise
 # desired_SN = 10
 #FWHM of telescope; galaxy is effectively a point source
@@ -102,10 +102,11 @@ conv = wave.to(u.m)**2/const.c * gal_solid_angle
 #also convert units
 conv_units = u.Jy
 
-'''
-#### calculate signal to noise
 #first find location of closest wavelength in the wave array
 loc = np.argmin(np.abs(wave - wave_redshifted))
+
+'''
+#### calculate signal to noise
 
 #calculate SN
 SN = S_gal / (S_tot[loc]*conv[loc]).to(u.Jy) * (t_i.to(u.s)/(1.*u.s))**0.5
@@ -150,16 +151,27 @@ P_det_NEP = nep / (2*t_i.to((u.Hz)**-1))**0.5
 P_background = S_tot*gal_solid_angle * delta_lambda.to(u.m) * A_tel
 
 
+#calculate the number of photons per seconds
+photon_energy_gal = const.h*const.c/wave_redshifted.to(u.m)
+photon_energy_range = const.h*const.c/wave.to(u.m)
+
+N_gal = P_gal.to(u.J/u.s)/photon_energy_gal
+N_det_NEP = P_det_NEP.to(u.J/u.s)/photon_energy_range
+N_background = P_background.to(u.J/u.s)/photon_energy_range
+
+SN = N_gal*t_i/((N_background[loc] + N_det_NEP[loc])*t_i)**0.5
+print(SN)
+
 #Now determine radiant energy using the integration time
-Q_gal = P_gal * t_i
-Q_det_NEP = P_det_NEP * t_i
-Q_background = P_background * t_i
+# Q_gal = P_gal * t_i
+# Q_det_NEP = (P_det_NEP * t_i)**0.5
+# Q_background = (P_background * t_i)**0.5
 
 #determine SN using only the NEP by dividing it by the NEP
 # SN_nep_based = (P_gal/(nep))*(t_i.to((u.Hz)**-1))**0.5
 # print(f'\nOnly using NEP: S/N = {SN_nep_based}')
 
-
+'''
 #### plot radiant flux of
 #background: zod and telescope
 plt.plot(wave, P_background, label = r'$P_{background}$', color = '#1B26C7')
@@ -167,28 +179,22 @@ plt.plot(wave, P_background, label = r'$P_{background}$', color = '#1B26C7')
 plt.plot(wave, np.zeros(wave.shape)+P_det_NEP, label = r'$P_{detector}$', color = 'orange')
 #galaxy
 plt.scatter(wave_redshifted, P_gal, marker = '*', color = 'r', label = 'Galaxy emission')
+'''
 
-# plt.plot(wave, (S_zod*conv).to(conv_units), label = r'$S_{Zod}$', color = '#E82C0C')
-# plt.plot(wave, (S_tot*conv).to(conv_units), label = r'$S_{Tot}$', color = '#F7D203', linestyle = '--')
-
-#elements of the telescope
-# plt.plot(wave, (S_shield_1*conv).to(conv_units), label = f'S_{T_sunshield_1}', color = '#5084FF')
-# plt.plot(wave, (S_shield_2*conv).to(conv_units), label = f'S_{T_sunshield_2}', color = '#3BE9FF')
-
-# S_shield_92 = 3e-5*planck_lam(wave, 92.*u.K)
-# plt.plot(wave, (S_shield_92*conv).to(conv_units), label = r'$S_{92K}$', color = 'black')
-
+#### plot noise = sensitivity
+plt.plot(wave, (((N_background + N_det_NEP)*t_i)**0.5)*photon_energy_range, label = 'Sensivity')
+plt.scatter(wave_redshifted, P_gal*t_i, label = 'Galaxy emission', marker = '*', color = 'r')
 
 #### Beautify the plot
 plt.grid(alpha=0.4)
 plt.yscale('log')
-plt.ylabel('Radiant flux [W]')
+plt.ylabel('Sensivity [J]')
 plt.xlabel(r'Wavelength $[\mu m]$')
-plt.title(f'PAHST radiant flux of telescope, zodiacal light and detector noise')
+plt.title(f'PAHST radiant flux of telescope, zodiacal light and detector noise\nAt 20 h integration time an R = 2666')
 
 # plt.ylim((1e-10, 1e-2))
 
 plt.legend(loc = 'best')
-plt.savefig(f'PAHST_radiant_flux.png', dpi = 300, bbox_inches = 'tight')
+plt.savefig(f'PAHST_sensivity.png', dpi = 300, bbox_inches = 'tight')
 # plt.show()
 plt.close()

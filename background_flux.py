@@ -70,7 +70,7 @@ elif telescope == 'PAHST':
 	S_dect_mirror = 0.48*planck_lam(wave, T_detector) + \
 			0.1*planck_lam(wave, T_telescope)
 
-	S_shield_1 = 3e-6*planck_lam(wave, T_sunshield_1) #original view factor: 3e-5
+	S_shield_1 = 3e-5*planck_lam(wave, T_sunshield_1) #original view factor: 3e-5
 	S_shield_2 = 9.9e-7*planck_lam(wave, T_sunshield_2) #original view factor: 9.9e-7
 
 	S_sunshield = S_shield_1 + S_shield_2
@@ -128,8 +128,7 @@ if telescope == 'PAHST':
 
 	#calculate SN
 	SN = S_gal / (S_tot[loc]*conv[loc]).to(u.Jy) * (t_i.to(u.s)/(1.*u.s))**0.5
-	print(f'')
-	print(f'S/N: {round(SN.value, 6)}')
+	print(f'\nBackground model S/N: {round(SN.value, 6)}')
 	#desired S/N: 10
 	#https://www.eso.org/~ohainaut/ccd/sn.html
 
@@ -164,8 +163,8 @@ if telescope == 'PAHST':
 	P_gal = F_gal * A_tel
 
 	#determine SN using only the NEP by dividing it by the NEP
-	SN_nep_based = (P_gal/(nep*u.Hz**0.5))*1*(t_i.to(u.s)/(0.5*u.s))**0.5
-	print(f'Only using NEP: S/N = {SN_nep_based}')
+	SN_nep_based = (P_gal/(nep))*1*(t_i.to((u.Hz)**-1))**0.5
+	print(f'\nOnly using NEP: S/N = {SN_nep_based}')
 else:
 	conv = wave.to(u.m)**2/const.c
 	#also convert units
@@ -178,8 +177,8 @@ plt.plot(wave, (S_zod*conv).to(conv_units), label = r'$S_{Zod}$', color = '#E82C
 plt.plot(wave, (S_tot*conv).to(conv_units), label = r'$S_{Tot}$', color = '#F7D203', linestyle = '--')
 
 #elements of the telescope
-# plt.plot(wave, (S_shield_1*conv).to(conv_units), label = f'S_{T_sunshield_1}', color = '#5084FF')
-# plt.plot(wave, (S_shield_2*conv).to(conv_units), label = f'S_{T_sunshield_2}', color = '#3BE9FF')
+plt.plot(wave, (S_shield_1*conv).to(conv_units), label = f'S_{T_sunshield_1}', color = '#5084FF')
+plt.plot(wave, (S_shield_2*conv).to(conv_units), label = f'S_{T_sunshield_2}', color = '#3BE9FF')
 
 # S_shield_92 = 3e-5*planck_lam(wave, 92.*u.K)
 # plt.plot(wave, (S_shield_92*conv).to(conv_units), label = r'$S_{92K}$', color = 'black')

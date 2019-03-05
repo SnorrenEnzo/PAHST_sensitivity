@@ -1,6 +1,9 @@
 """
-This script calculates the sensitivity requirements of PAHST. Sources of
-numbers are provided where possible. 
+This script calculates the sensitivity requirements of PAHST using two methods:
+1. Telescope background emission model from JWST: Swinyard et al. (2004) 
+2. Based on NEP of detector, which assumes no background emission.
+
+Sources are provided where possible. 
 
 It is useful to know the definitions of radiant power, radiant flux, 
 spectral radiance, spectral irradiance etc:

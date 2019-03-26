@@ -41,16 +41,40 @@ def planck_lam(wave, T):
 				(const.h*const.c/wave/const.k_B/T).decompose())-1))\
 		.to(u.W/u.sr/u.m**3)
 
-#load spectral resolution
+#load spectral resolution of PAHST and extract wavelength range
 df = pd.read_csv('2019-03-07_PACS_data_from_plot.csv')
 lambda_R = np.array(df)
-
+#select wavelengths
+wave_sel = np.array([55, 90, 120, 160, 180])
+wave_loc = np.argmin(np.abs(np.vstack(lambda_R, 4) - wave_sel))
+print(wave_loc)
 wave = lambda_R[:,0]*u.micron
-R = lambda_R[:,1]
 
 
-# wave = np.linspace(20, 200, 1000)*u.micron
-# wave = np.linspace(5, 20, 1000)*u.micron
+#### fix parameters
+#target signal to noise
+SN_goal = 5**2 #sigma = 5
+optical_efficiency = 0.4
+
+
+telescope = 'PAHST'
+
+if telescope == 'PAHST':
+	#spectral resolution from the PACS plot
+	R = lambda_R[:,1]
+
+		#all temperatures
+	T_detector = 0.05*u.K
+	T_telescope = 4*u.K
+	T_sunshield_1 = 35*u.K
+	T_sunshield_2 = 60*u.K
+
+	#telescope diameter
+	d_tel = 8*u.m #DEFAULT PAHST = 8m
+
+	nep = 5e-20*u.W/u.Hz**0.5  #Kenyon et al. 2006, page 38 of PAHST paper
+	#with this NEP one can detect a signal of 5e-20 W with S/N = 1 after
+	#0.5s of integration time
 
 
 #### Zodiacal light calculation in Swinyard et al. (2004)
@@ -63,12 +87,6 @@ S_zod = Z_F*(3.5e-14*B_5500 + 3.58e-8*B_270)
 
 #### Calculate the spectral radiance of the telescope background
 # based on the model from Swinyard et al. (2004)
-#all temperatures
-T_detector = 0.05*u.K
-T_telescope = 4*u.K
-T_sunshield_1 = 35*u.K
-T_sunshield_2 = 60*u.K
-
 S_dect_mirror = 0.48*planck_lam(wave, T_detector) + \
 		0.1*planck_lam(wave, T_telescope)
 
@@ -80,18 +98,10 @@ S_tel = S_dect_mirror #+ S_sunshield
 S_tot = S_zod + S_tel
 
 
-#### some semi-fixed values
-#desired signal to noise
-# desired_SN = 10
-#telescope diameter
-d_tel = 8*u.m #DEFAULT PAHST = 8m
+#### Calculate the sensitivity
 #FWHM of telescope; galaxy is effectively a point source
 fwhm = ((1.22 * wave.to(u.m)/d_tel)*u.rad).to(u.arcsecond)
-optical_efficiency = 0.4
 
-#target signal to noise
-SN_goal = 5**2 #sigma = 5
-#integration time
 t_i = 3600*u.s#(20*u.h).to(u.s)
 #### Do the reverse calculation: sensitivity from SN
 #now determine the wavelength bin
@@ -116,14 +126,22 @@ photon_energy_range = const.h*const.c/wave.to(u.m)
 N_background = optical_efficiency*P_background.to(u.J/u.s)/photon_energy_range
 
 
+##Also include the NEP in the noise
+#radiant flux of the detector based on the NEP
+P_det_NEP = nep / (2*t_i.to((u.Hz)**-1))**0.5
+#number of photons per second
+N_det_NEP = P_det_NEP.to(u.J/u.s)/photon_energy_range
+
 #now the number of counts of the source is given by the SNR
-N_source = ((SN_goal*(N_background*t_i)**0.5)/t_i)/optical_efficiency
+N_source = ((SN_goal*((N_background + N_det_NEP)*t_i)**0.5)/t_i)/optical_efficiency
+
 #convert this number of counts of the source to radiant flux [W]
 P_source = (N_source * photon_energy_range).to(u.W)
 #convert to flux density [W/m^2]
 F_source = P_source/A_tel
 #convert to spectral irradiance/spectral flux density [W/m^2/Hz]
 S_source = (F_source/delta_f).to(u.Jy)
+
 
 #for photometer
 # Band = np.array([47, 87, 155])*u.micron
@@ -227,33 +245,19 @@ def sensitivity_other_missions():
 		alpha=aa, color = colors[9], label='Herschel, PACS spectr.')
 	llines.append(l9)
 
-	'''
-	### PAHST
-	# imager
-	band = np.array([47, 87, 155])*u.micron
-	l10, = plt.plot(band, f_PAHST_imager, ls='', marker='o', \
-		alpha=aa, color = colors[10], label='PAHST, imager')
-	llines.append(l10)
-	# spectrometer
-	wave = np.array([47, 87, 155])*u.micron
-	l11, = plt.plot(wave, f_PAHST_spectrometer, ls='', marker='o', \
-		alpha=aa, color = colors[11], label='PAHST, spectrometer')
-	llines.append(l11)
-
-	'''
-
 	return llines
 	
 
 llines = sensitivity_other_missions()
 
-#### plot PAHST sensitivity
+#### plot sensitivity
 #photometer
 # l10 = plt.scatter(wave, F_source, label = 'PAHST spectrometer')
 # llines.append(l10)
 
 #spectrometer
-l11 = plt.scatter(wave, F_source, label = 'PAHST spectrometer')
+l11 = plt.plot(wave, F_source, label = f'{telescope} spectrometer',
+				ls = '', marker = 'o', color = 'black', alpha = 0.5)
 llines.append(l11)
 
 
@@ -272,8 +276,8 @@ square = matplotlib.lines.Line2D([], [],
 								 marker='s',
 							   label='10 000s, 10$\sigma$')
 
-leg1 = plt.legend(handles=[dot, square], loc=3, fontsize=9)
-plt.legend(loc=2, fontsize=8, ncol=2).draggable()
+leg1 = plt.legend(handles = [dot, square], loc = 3, fontsize = 9)
+plt.legend(loc = 'best', fontsize = 8, ncol = 2)
 plt.ylim(1e-23, 1e-16)
 plt.gca().add_artist(leg1)
 
@@ -282,7 +286,7 @@ plt.xlabel('Wavelength [$\mu$m]')
 plt.ylabel('Sensitivity [W/m$^2$]')
 plt.xscale('log')
 
-plt.savefig(f'PAHST_sensitivity_comparison.png', dpi = 300, bbox_inches = 'tight')
+plt.savefig(f'{telescope}_sensitivity_comparison.png', dpi = 300, bbox_inches = 'tight')
 # plt.show()
 plt.close()
 

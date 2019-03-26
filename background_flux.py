@@ -181,6 +181,7 @@ plt.plot(wave, np.zeros(wave.shape)+P_det_NEP, label = r'$P_{detector}$', color 
 plt.scatter(wave_redshifted, P_gal, marker = '*', color = 'r', label = 'Galaxy emission')
 '''
 
+'''
 #### plot noise = sensitivity
 plt.plot(wave, (((N_background + N_det_NEP)*t_i)**0.5)*photon_energy_range, label = 'Sensivity')
 plt.scatter(wave_redshifted, P_gal*t_i, label = 'Galaxy emission', marker = '*', color = 'r')
@@ -198,3 +199,4 @@ plt.legend(loc = 'best')
 plt.savefig(f'PAHST_sensivity.png', dpi = 300, bbox_inches = 'tight')
 # plt.show()
 plt.close()
+'''
